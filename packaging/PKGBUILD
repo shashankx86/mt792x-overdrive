@@ -4,7 +4,7 @@ pkgver=7.1.8_overdrive
 pkgrel=1
 pkgdesc="Overdrive edition kernel driver for MediaTek MT7921/MT7922 and AMD RZ608/RZ616 (bypasses ACPI SAR, uncaps MCU power, disables ASPM/CLC)"
 arch=('x86_64')
-url="https://github.com/openwrt/mt76"
+url="https://github.com/shashankx86/mt792x-overdrive"
 license=('GPL-2.0-only' 'BSD-3-Clause')
 depends=('dkms')
 provides=('mt792x-overdrive' 'mt7921e-overdrive')
@@ -13,7 +13,7 @@ source=('dkms.conf')
 sha256sums=('SKIP')
 
 package() {
-    local srcdir_dest="${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver/_/-}"
+    local srcdir_dest="${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver}"
     mkdir -p "${srcdir_dest}"
 
     local rootdir="${startdir}/.."

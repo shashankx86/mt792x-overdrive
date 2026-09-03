@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 4ba96d1..100fffb 100644
+index 4ba96d1c..100fffb3 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,49 +1,19 @@
@@ -58,8 +58,49 @@ index 4ba96d1..100fffb 100644
 -obj-$(CONFIG_MT7996E) += mt7996/
 -obj-$(CONFIG_MT7925_COMMON) += mt7925/
 +obj-m += mt7921/
+diff --git a/agg-rx.c b/agg-rx.c
+index 3d34caf7..bf4dd5c1 100644
+--- a/agg-rx.c
++++ b/agg-rx.c
+@@ -4,11 +4,19 @@
+  */
+ #include "mt76.h"
+ 
++/* OVERDRIVE: halve reorder hold (100ms->50ms BE/BK, 40ms->20ms others).
++ * Releases lost-subframe gaps to the stack ~2x faster. */
++static bool mt76_reorder_fast = true;
++module_param_named(reorder_fast, mt76_reorder_fast, bool, 0644);
++MODULE_PARM_DESC(reorder_fast, "halve A-MPDU reorder hold time for lower jitter");
++
+ static unsigned long mt76_aggr_tid_to_timeo(u8 tidno)
+ {
+ 	/* Currently voice traffic (AC_VO) always runs without aggregation,
+ 	 * no special handling is needed. AC_BE/AC_BK use tids 0-3. Just check
+ 	 * for non AC_BK/AC_BE and set smaller timeout for it. */
++	if (mt76_reorder_fast)
++		return HZ / (tidno >= 4 ? 50 : 20);
+ 	return HZ / (tidno >= 4 ? 25 : 10);
+ }
+ 
+diff --git a/dma.c b/dma.c
+index a67880a9..a2acce42 100644
+--- a/dma.c
++++ b/dma.c
+@@ -1127,7 +1127,11 @@ static void
+ mt76_dma_rx_queue_init(struct mt76_dev *dev, enum mt76_rxq_id qid,
+ 		       int (*poll)(struct napi_struct *napi, int budget))
+ {
+-	netif_napi_add(dev->napi_dev, &dev->napi[qid], poll);
++	/* OVERDRIVE: 128 for data queue (fewer reschedules under burst),
++	 * 64 for MCU/event queues. Bounded by budget loop above. */
++	int weight = (qid == MT_RXQ_MAIN) ? 128 : 64;
++
++	netif_napi_add_weight(dev->napi_dev, &dev->napi[qid], poll, weight);
+ 	mt76_dma_rx_fill_buf(dev, &dev->q_rx[qid], false);
+ 	napi_enable(&dev->napi[qid]);
+ }
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 2f925d2..d5a3bea 100644
+index 2f925d22..d5a3beaa 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
 @@ -3037,7 +3037,7 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
@@ -83,7 +124,7 @@ index 2f925d2..d5a3bea 100644
  EXPORT_SYMBOL_GPL(mt76_connac_get_rate_power_limit);
  
 diff --git a/mt76x0/eeprom.c b/mt76x0/eeprom.c
-index f6720a4..d4506b8 100644
+index f6720a46..d4506b8b 100644
 --- a/mt76x0/eeprom.c
 +++ b/mt76x0/eeprom.c
 @@ -10,7 +10,7 @@
@@ -96,7 +137,7 @@ index f6720a4..d4506b8 100644
  #include "eeprom.h"
  #include "../mt76x02_phy.h"
 diff --git a/mt76x02_eeprom.c b/mt76x02_eeprom.c
-index 2a15bd2..d16be0c 100644
+index 2a15bd2c..d16be0cb 100644
 --- a/mt76x02_eeprom.c
 +++ b/mt76x02_eeprom.c
 @@ -4,7 +4,7 @@
@@ -109,7 +150,7 @@ index 2a15bd2..d16be0c 100644
  #include "mt76x02_eeprom.h"
  
 diff --git a/mt76x2/eeprom.c b/mt76x2/eeprom.c
-index e1e317a..782813a 100644
+index e1e317ad..782813aa 100644
 --- a/mt76x2/eeprom.c
 +++ b/mt76x2/eeprom.c
 @@ -5,7 +5,7 @@
@@ -122,7 +163,7 @@ index e1e317a..782813a 100644
  #include "eeprom.h"
  
 diff --git a/mt7921/Makefile b/mt7921/Makefile
-index 3ef7c9c..cc70999 100644
+index 3ef7c9c4..cc709990 100644
 --- a/mt7921/Makefile
 +++ b/mt7921/Makefile
 @@ -1,12 +1,7 @@
@@ -140,8 +181,59 @@ index 3ef7c9c..cc70999 100644
  mt7921e-y := pci.o pci_mac.o pci_mcu.o
 -mt7921s-y := sdio.o sdio_mac.o sdio_mcu.o
 -mt7921u-y := usb.o
+diff --git a/mt7921/init.c b/mt7921/init.c
+index e3e8bd9d..451a7caf 100644
+--- a/mt7921/init.c
++++ b/mt7921/init.c
+@@ -11,6 +11,16 @@
+ #include "mcu.h"
+ #include "regd.h"
+ 
++/* OVERDRIVE: FW power-save / deep-sleep is the largest idle->burst jitter
++ * source after ASPM (83ms idle_timeout + fw-own/driver-own handshake).
++ * Default disabled; reversible at runtime via disable_ps=0/disable_ds=0. */
++static bool mt7921_disable_ps = true;
++module_param_named(disable_ps, mt7921_disable_ps, bool, 0644);
++MODULE_PARM_DESC(disable_ps, "disable firmware power-save");
++static bool mt7921_disable_ds = true;
++module_param_named(disable_ds, mt7921_disable_ds, bool, 0644);
++MODULE_PARM_DESC(disable_ds, "disable deep-sleep");
++
+ static ssize_t mt7921_thermal_temp_show(struct device *dev,
+ 					struct device_attribute *attr,
+ 					char *buf)
+@@ -208,9 +218,14 @@ int mt7921_register_device(struct mt792x_dev *dev)
+ 	dev->pm.stats.last_doze_event = jiffies;
+ 
+ 	if (!mt76_is_usb(&dev->mt76) &&
+-	    !is_mt7902(&dev->mt76)) {
++	    !is_mt7902(&dev->mt76) &&
++	    !mt7921_disable_ps) {
+ 		dev->pm.enable_user = true;
+ 		dev->pm.enable = true;
++	}
++	if (!mt76_is_usb(&dev->mt76) &&
++	    !is_mt7902(&dev->mt76) &&
++	    !mt7921_disable_ds) {
+ 		dev->pm.ds_enable_user = true;
+ 		dev->pm.ds_enable = true;
+ 	}
+diff --git a/mt7921/mt7921.h b/mt7921/mt7921.h
+index f7ed1135..6fb08e4a 100644
+--- a/mt7921/mt7921.h
++++ b/mt7921/mt7921.h
+@@ -19,7 +19,8 @@
+ #define MT7921_TX_FWDL_RING_SIZE	128
+ 
+ #define MT7921_RX_RING_SIZE		1536
+-#define MT7921_RX_MCU_RING_SIZE		8
++/* OVERDRIVE: 8-deep WM event ring dropped under scan/radar churn; 64 absorbs bursts */
++#define MT7921_RX_MCU_RING_SIZE		64
+ #define MT7921_RX_MCU_WA_RING_SIZE	512
+ 
+ /* MT7902 Rx Ring0 is for both Rx Event and Tx Done Event */
 diff --git a/mt7921/pci.c b/mt7921/pci.c
-index fcbb7a0..4a7308c 100644
+index fcbb7a03..a102e432 100644
 --- a/mt7921/pci.c
 +++ b/mt7921/pci.c
 @@ -32,7 +32,7 @@ static const struct pci_device_id mt7921_pci_device_table[] = {
@@ -153,16 +245,28 @@ index fcbb7a0..4a7308c 100644
  module_param_named(disable_aspm, mt7921_disable_aspm, bool, 0644);
  MODULE_PARM_DESC(disable_aspm, "disable PCI ASPM support");
  
-@@ -739,5 +739,6 @@ MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
+@@ -334,6 +334,11 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
+ 	if (mt7921_disable_aspm)
+ 		mt76_pci_disable_aspm(pdev);
+ 
++	/* OVERDRIVE: larger read bursts + no L1.2 entry/exit spikes.
++	 * Clamped to parent bridge limits by the PCI core. */
++	if (mt7921_disable_aspm)
++		pcie_set_readrq(pdev, 512);
++
+ 	ops = mt792x_get_mac80211_ops(&pdev->dev, &mt7921_ops,
+ 				      (void *)id->driver_data, &features);
+ 	if (!ops) {
+@@ -739,5 +744,6 @@ MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
  MODULE_FIRMWARE(MT7902_ROM_PATCH);
  MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
  MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 -MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
 +MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver [Overdrive Edition]");
-+MODULE_VERSION("7.1.8-overdrive");
++MODULE_VERSION("7.1.8_overdrive");
  MODULE_LICENSE("Dual BSD/GPL");
 diff --git a/mt7921/regd.c b/mt7921/regd.c
-index 4a8ea46..2ee50ca 100644
+index 4a8ea462..2ee50ca7 100644
 --- a/mt7921/regd.c
 +++ b/mt7921/regd.c
 @@ -6,7 +6,7 @@
@@ -175,7 +279,7 @@ index 4a8ea46..2ee50ca 100644
  MODULE_PARM_DESC(disable_clc, "disable CLC support");
  
 diff --git a/mt792x_acpi_sar.c b/mt792x_acpi_sar.c
-index 946dd79..87cb8b9 100644
+index 946dd795..dc5fa535 100644
 --- a/mt792x_acpi_sar.c
 +++ b/mt792x_acpi_sar.c
 @@ -191,6 +191,12 @@ mt792x_asar_acpi_read_mtfg(struct mt792x_dev *dev, u8 **table)
@@ -187,21 +291,70 @@ index 946dd79..87cb8b9 100644
 +	dev->phy.acpisar = NULL;
 +	return -EOPNOTSUPP;
 +}
-+static int __unused_mt792x_init_acpi_sar(struct mt792x_dev *dev)
++static int __maybe_unused __unused_mt792x_init_acpi_sar(struct mt792x_dev *dev)
  {
  	struct mt792x_acpi_sar *asar;
  	int ret;
+diff --git a/mt792x_dma.c b/mt792x_dma.c
+index e74b95fd..c9ce3800 100644
+--- a/mt792x_dma.c
++++ b/mt792x_dma.c
+@@ -265,15 +265,16 @@ static void mt792x_dma_prefetch(struct mt792x_dev *dev)
+ 		mt76_wr(dev, MT_WFDMA0_RX_RING4_EXT_CTRL, PREFETCH(0xc0, 0x4));
+ 		mt76_wr(dev, MT_WFDMA0_RX_RING5_EXT_CTRL, PREFETCH(0x100, 0x4));
+ 		/* tx ring */
+-		mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, PREFETCH(0x140, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING1_EXT_CTRL, PREFETCH(0x180, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING2_EXT_CTRL, PREFETCH(0x1c0, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING3_EXT_CTRL, PREFETCH(0x200, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING4_EXT_CTRL, PREFETCH(0x240, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING5_EXT_CTRL, PREFETCH(0x280, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING6_EXT_CTRL, PREFETCH(0x2c0, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x340, 0x4));
+-		mt76_wr(dev, MT_WFDMA0_TX_RING17_EXT_CTRL, PREFETCH(0x380, 0x4));
++		/* OVERDRIVE: depth 0x10 mirrors mt7925 path; 0x4 starved TX bursts */
++		mt76_wr(dev, MT_WFDMA0_TX_RING0_EXT_CTRL, PREFETCH(0x140, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING1_EXT_CTRL, PREFETCH(0x180, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING2_EXT_CTRL, PREFETCH(0x1c0, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING3_EXT_CTRL, PREFETCH(0x200, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING4_EXT_CTRL, PREFETCH(0x240, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING5_EXT_CTRL, PREFETCH(0x280, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING6_EXT_CTRL, PREFETCH(0x2c0, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x340, 0x10));
++		mt76_wr(dev, MT_WFDMA0_TX_RING17_EXT_CTRL, PREFETCH(0x380, 0x10));
+ 	}
+ }
+ 
+@@ -290,6 +291,7 @@ int mt792x_dma_enable(struct mt792x_dev *dev)
+ 		mt76_wr(dev, MT_WFDMA0_RST_DRX_PTR, ~0);
+ 
+ 	/* configure delay interrupt */
++	/* OVERDRIVE: keep 0 (no coalescing). Raising this adds RX latency. */
+ 	mt76_wr(dev, MT_WFDMA0_PRI_DLY_INT_CFG0, 0);
+ 
+ 	if (is_mt7928(&dev->mt76)) {
+@@ -525,6 +527,9 @@ int mt792x_poll_tx(struct napi_struct *napi, int budget)
+ 	}
+ 
+ 	mt76_connac_tx_cleanup(&dev->mt76);
++	/* OVERDRIVE: cleanup is MCU TX-done only (small, bounded by ring
++	 * sizes). Keep standard complete-then-re-enable-IRQ discipline so
++	 * TX-done storms reschedule via NAPI instead of starving RX. */
+ 	if (napi_complete(napi))
+ 		mt76_connac_irq_enable(&dev->mt76,
+ 				       dev->irq_map->tx.all_complete_mask);
 diff --git a/tx.c b/tx.c
-index 963fcaf..f71957f 100644
+index 963fcaf4..3e83245c 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -505,8 +505,7 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
+@@ -505,7 +505,9 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
  	if (test_bit(MT_WCID_FLAG_PS, &wcid->flags)) {
  		if (!(dev->drv->drv_flags & MT_DRV_HW_PS_BUFFERING))
  			return 0;
 -		if (ieee80211_txq_aql_pending(phy->hw, txq))
--			return 0;
-+		/* disabled for compat */
++		/* OVERDRIVE compat: aql_pending was renamed to airtime_check
++		 * (inverted polarity) in recent mac80211. Keep AQL gating. */
++		if (!ieee80211_txq_airtime_check(phy->hw, txq))
+ 			return 0;
  	}
  
- 	if (atomic_read(&mt76_wcid_primary(wcid)->non_aql_packets) >=

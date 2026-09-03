@@ -69,13 +69,13 @@ sudo pacman -R mt792x-overdrive-dkms
 
 ```bash
 sudo dkms add .
-sudo dkms build mt792x-overdrive/7.1.8-overdrive
-sudo dkms install mt792x-overdrive/7.1.8-overdrive
+sudo dkms build mt792x-overdrive/7.1.8_overdrive
+sudo dkms install mt792x-overdrive/7.1.8_overdrive
 ```
 
 To remove:
 ```bash
-sudo dkms remove mt792x-overdrive/7.1.8-overdrive --all
+sudo dkms remove mt792x-overdrive/7.1.8_overdrive --all
 ```
 
 ---
