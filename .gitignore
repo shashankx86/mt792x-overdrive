@@ -12,3 +12,14 @@ CMakeCache.txt
 cmake_install.cmake
 tools/Makefile
 tools/mt76-test
+
+# Build & packaging artifacts
+*.cmd
+.*.cmd
+*.mod.o
+*.ko.*
+Module.symvers
+.module-common.o
+packaging/src/
+packaging/pkg/
+packaging/*.pkg.tar.*
