@@ -16,7 +16,6 @@ The base tree stays clean upstream stock. All changes ship in `patch/`.
 | Country CLC tables | Firmware prunes channels/power | Skipped by default |
 | Firmware power-save / deep-sleep | On, 83 ms idle timeout | Off by default |
 | WM event ring | 8 entries, drops under scan/radar churn | 64 entries |
-| WFDMA TX prefetch | Depth 4 | Depth 16, mirrors mt7925 path |
 | Delay-interrupt coalescing | Already 0 | Pinned at 0 with guard comment |
 | RX reorder hold | 100 ms BE/BK, 40 ms others | 50 ms / 20 ms |
 | RX NAPI weight, data queue | 64 | 128, MCU queues stay 64 |
