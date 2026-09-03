@@ -1,0 +1,207 @@
+diff --git a/Makefile b/Makefile
+index 4ba96d1..100fffb 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,49 +1,19 @@
+ # SPDX-License-Identifier: BSD-3-Clause-Clear
+-ccflags-y += -Werror -DCONFIG_MT76_LEDS
++ccflags-y += -DCONFIG_MT76_LEDS
+ obj-m := mt76.o
+-obj-$(CONFIG_MT76_USB) += mt76-usb.o
+-obj-$(CONFIG_MT76_SDIO) += mt76-sdio.o
+-obj-$(CONFIG_MT76x02_LIB) += mt76x02-lib.o
+-obj-$(CONFIG_MT76x02_USB) += mt76x02-usb.o
+-obj-$(CONFIG_MT76_CONNAC_LIB) += mt76-connac-lib.o
+-obj-$(CONFIG_MT792x_LIB) += mt792x-lib.o
+-obj-$(CONFIG_MT792x_USB) += mt792x-usb.o
++obj-m += mt76-connac-lib.o
++obj-m += mt792x-lib.o
+ 
+ mt76-y := \
+ 	mmio.o util.o trace.o dma.o mac80211.o debugfs.o eeprom.o \
+-	tx.o agg-rx.o mcu.o wed.o scan.o channel.o
+-
+-mt76-$(CONFIG_MT76_NPU) += npu.o
+-mt76-$(CONFIG_PCI) += pci.o
+-mt76-$(CONFIG_NL80211_TESTMODE) += testmode.o
+-
+-mt76-usb-y := usb.o usb_trace.o
+-mt76-sdio-y := sdio.o sdio_txrx.o
++	tx.o agg-rx.o mcu.o wed.o scan.o channel.o pci.o
+ 
+ CFLAGS_trace.o := -I$(src)
+-CFLAGS_usb_trace.o := -I$(src)
+-CFLAGS_mt76x02_trace.o := -I$(src)
+ CFLAGS_mt792x_trace.o := -I$(src)
+ 
+-mt76x02-lib-y := mt76x02_util.o mt76x02_mac.o mt76x02_mcu.o \
+-		 mt76x02_eeprom.o mt76x02_phy.o mt76x02_mmio.o \
+-		 mt76x02_txrx.o mt76x02_trace.o mt76x02_debugfs.o \
+-		 mt76x02_dfs.o mt76x02_beacon.o
+-
+-mt76x02-usb-y := mt76x02_usb_mcu.o mt76x02_usb_core.o
+-
+ mt76-connac-lib-y := mt76_connac_mcu.o mt76_connac_mac.o mt76_connac3_mac.o
+ 
+ mt792x-lib-y := mt792x_core.o mt792x_mac.o mt792x_trace.o \
+-		mt792x_debugfs.o mt792x_dma.o
+-mt792x-lib-$(CONFIG_ACPI) += mt792x_acpi_sar.o
+-mt792x-usb-y := mt792x_usb.o
++		mt792x_debugfs.o mt792x_dma.o mt792x_acpi_sar.o
+ 
+-obj-$(CONFIG_MT76x0_COMMON) += mt76x0/
+-obj-$(CONFIG_MT76x2_COMMON) += mt76x2/
+-obj-$(CONFIG_MT7603E) += mt7603/
+-obj-$(CONFIG_MT7615_COMMON) += mt7615/
+-obj-$(CONFIG_MT7915E) += mt7915/
+-obj-$(CONFIG_MT7921_COMMON) += mt7921/
+-obj-$(CONFIG_MT7996E) += mt7996/
+-obj-$(CONFIG_MT7925_COMMON) += mt7925/
++obj-m += mt7921/
+diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
+index 2f925d2..d5a3bea 100644
+--- a/mt76_connac_mcu.c
++++ b/mt76_connac_mcu.c
+@@ -3037,7 +3037,7 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
+ 				    struct ieee80211_channel *chan,
+ 				    struct mt76_power_limits *limits)
+ {
+-	s8 reg_power, sar_power;
++	s8 reg_power;
+ 	int tx_power;
+ 
+ 	tx_power = 2 * phy->hw->conf.power_level;
+@@ -3045,8 +3045,8 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
+ 		tx_power = 127;
+ 
+ 	reg_power = mt76_connac_get_ch_power(phy, chan, tx_power);
+-	sar_power = mt76_get_sar_power(phy, chan, reg_power);
+-	return mt76_get_rate_power_limits(phy, chan, limits, sar_power);
++	/* OVERDRIVE: bypass SAR capping and use max regulatory channel power */
++	return mt76_get_rate_power_limits(phy, chan, limits, reg_power);
+ }
+ EXPORT_SYMBOL_GPL(mt76_connac_get_rate_power_limit);
+ 
+diff --git a/mt76x0/eeprom.c b/mt76x0/eeprom.c
+index f6720a4..d4506b8 100644
+--- a/mt76x0/eeprom.c
++++ b/mt76x0/eeprom.c
+@@ -10,7 +10,7 @@
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/partitions.h>
+ #include <linux/etherdevice.h>
+-#include <asm/unaligned.h>
++#include <linux/unaligned.h>
+ #include "mt76x0.h"
+ #include "eeprom.h"
+ #include "../mt76x02_phy.h"
+diff --git a/mt76x02_eeprom.c b/mt76x02_eeprom.c
+index 2a15bd2..d16be0c 100644
+--- a/mt76x02_eeprom.c
++++ b/mt76x02_eeprom.c
+@@ -4,7 +4,7 @@
+  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
+  */
+ 
+-#include <asm/unaligned.h>
++#include <linux/unaligned.h>
+ 
+ #include "mt76x02_eeprom.h"
+ 
+diff --git a/mt76x2/eeprom.c b/mt76x2/eeprom.c
+index e1e317a..782813a 100644
+--- a/mt76x2/eeprom.c
++++ b/mt76x2/eeprom.c
+@@ -5,7 +5,7 @@
+ 
+ #include <linux/module.h>
+ #include <linux/of.h>
+-#include <asm/unaligned.h>
++#include <linux/unaligned.h>
+ #include "mt76x2.h"
+ #include "eeprom.h"
+ 
+diff --git a/mt7921/Makefile b/mt7921/Makefile
+index 3ef7c9c..cc70999 100644
+--- a/mt7921/Makefile
++++ b/mt7921/Makefile
+@@ -1,12 +1,7 @@
+ # SPDX-License-Identifier: BSD-3-Clause-Clear
+ 
+-obj-$(CONFIG_MT7921_COMMON) += mt7921-common.o
+-obj-$(CONFIG_MT7921E) += mt7921e.o
+-obj-$(CONFIG_MT7921S) += mt7921s.o
+-obj-$(CONFIG_MT7921U) += mt7921u.o
++obj-m += mt7921-common.o
++obj-m += mt7921e.o
+ 
+ mt7921-common-y := mac.o mcu.o regd.o main.o init.o debugfs.o
+-mt7921-common-$(CONFIG_NL80211_TESTMODE) += testmode.o
+ mt7921e-y := pci.o pci_mac.o pci_mcu.o
+-mt7921s-y := sdio.o sdio_mac.o sdio_mcu.o
+-mt7921u-y := usb.o
+diff --git a/mt7921/pci.c b/mt7921/pci.c
+index fcbb7a0..4a7308c 100644
+--- a/mt7921/pci.c
++++ b/mt7921/pci.c
+@@ -32,7 +32,7 @@ static const struct pci_device_id mt7921_pci_device_table[] = {
+ 	{ },
+ };
+ 
+-static bool mt7921_disable_aspm;
++static bool mt7921_disable_aspm = true; /* OVERDRIVE */
+ module_param_named(disable_aspm, mt7921_disable_aspm, bool, 0644);
+ MODULE_PARM_DESC(disable_aspm, "disable PCI ASPM support");
+ 
+@@ -739,5 +739,6 @@ MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
+ MODULE_FIRMWARE(MT7902_ROM_PATCH);
+ MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
+ MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
+-MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
++MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver [Overdrive Edition]");
++MODULE_VERSION("7.1.8-overdrive");
+ MODULE_LICENSE("Dual BSD/GPL");
+diff --git a/mt7921/regd.c b/mt7921/regd.c
+index 4a8ea46..2ee50ca 100644
+--- a/mt7921/regd.c
++++ b/mt7921/regd.c
+@@ -6,7 +6,7 @@
+ #include "regd.h"
+ #include "mcu.h"
+ 
+-static bool mt7921_disable_clc;
++static bool mt7921_disable_clc = true; /* OVERDRIVE */
+ module_param_named(disable_clc, mt7921_disable_clc, bool, 0644);
+ MODULE_PARM_DESC(disable_clc, "disable CLC support");
+ 
+diff --git a/mt792x_acpi_sar.c b/mt792x_acpi_sar.c
+index 946dd79..87cb8b9 100644
+--- a/mt792x_acpi_sar.c
++++ b/mt792x_acpi_sar.c
+@@ -191,6 +191,12 @@ mt792x_asar_acpi_read_mtfg(struct mt792x_dev *dev, u8 **table)
+ }
+ 
+ int mt792x_init_acpi_sar(struct mt792x_dev *dev)
++{
++	/* OVERDRIVE: Bypass ACPI SAR */
++	dev->phy.acpisar = NULL;
++	return -EOPNOTSUPP;
++}
++static int __unused_mt792x_init_acpi_sar(struct mt792x_dev *dev)
+ {
+ 	struct mt792x_acpi_sar *asar;
+ 	int ret;
+diff --git a/tx.c b/tx.c
+index 963fcaf..f71957f 100644
+--- a/tx.c
++++ b/tx.c
+@@ -505,8 +505,7 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
+ 	if (test_bit(MT_WCID_FLAG_PS, &wcid->flags)) {
+ 		if (!(dev->drv->drv_flags & MT_DRV_HW_PS_BUFFERING))
+ 			return 0;
+-		if (ieee80211_txq_aql_pending(phy->hw, txq))
+-			return 0;
++		/* disabled for compat */
+ 	}
+ 
+ 	if (atomic_read(&mt76_wcid_primary(wcid)->non_aql_packets) >=

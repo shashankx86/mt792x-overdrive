@@ -1,0 +1,33 @@
+# Maintainer: e0u
+pkgname=mt792x-overdrive-dkms
+pkgver=7.1.8_overdrive
+pkgrel=1
+pkgdesc="Overdrive edition kernel driver for MediaTek MT7921/MT7922 and AMD RZ608/RZ616 (bypasses ACPI SAR, uncaps MCU power, disables ASPM/CLC)"
+arch=('x86_64')
+url="https://github.com/openwrt/mt76"
+license=('GPL-2.0-only' 'BSD-3-Clause')
+depends=('dkms')
+provides=('mt792x-overdrive' 'mt7921e-overdrive')
+conflicts=('mt792x-overdrive' 'mt7921e-overdrive')
+source=('dkms.conf')
+sha256sums=('SKIP')
+
+package() {
+    local srcdir_dest="${pkgdir}/usr/src/${pkgname%-dkms}-${pkgver/_/-}"
+    mkdir -p "${srcdir_dest}"
+
+    local rootdir="${startdir}/.."
+
+    # Copy driver sources to dkms source directory
+    find "${rootdir}" -maxdepth 1 -name "*.[ch]" -exec cp {} "${srcdir_dest}/" \;
+    cp "${rootdir}/Makefile" "${srcdir_dest}/"
+    cp -r "${rootdir}"/mt* "${srcdir_dest}/"
+    cp -r "${rootdir}/patch" "${srcdir_dest}/"
+    cp -r "${rootdir}/scripts" "${srcdir_dest}/"
+
+    # Apply overdrive patch in destination directory
+    patch -p1 -d "${srcdir_dest}" < "${srcdir_dest}/patch/7.1.8-overdrive.patch"
+
+    # Install DKMS config
+    install -Dm644 "${srcdir}/dkms.conf" "${srcdir_dest}/dkms.conf"
+}
