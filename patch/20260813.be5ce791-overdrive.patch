@@ -263,7 +263,7 @@ index fcbb7a03..a102e432 100644
  MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 -MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
 +MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver [Overdrive Edition]");
-+MODULE_VERSION("7.1.8_overdrive");
++MODULE_VERSION("20260813.be5ce791");
  MODULE_LICENSE("Dual BSD/GPL");
 diff --git a/mt7921/regd.c b/mt7921/regd.c
 index 4a8ea462..2ee50ca7 100644
