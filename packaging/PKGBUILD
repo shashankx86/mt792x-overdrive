@@ -1,7 +1,7 @@
 # Maintainer: e0u
 pkgname=mt792x-overdrive-dkms
 pkgver=20260813.be5ce791
-pkgrel=1
+pkgrel=2
 pkgdesc="Overdrive edition kernel driver for MediaTek MT7921/MT7922 and AMD RZ608/RZ616 (bypasses ACPI SAR, uncaps MCU power, disables ASPM/CLC)"
 arch=('x86_64')
 url="https://github.com/shashankx86/mt792x-overdrive"
