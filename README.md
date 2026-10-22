@@ -16,7 +16,7 @@ The base tree stays clean upstream stock. All changes ship in `patch/`.
 | Country CLC tables | Firmware prunes channels/power | Skipped by default |
 | Firmware power-save / deep-sleep | On, 83 ms idle timeout | Off by default |
 | WM event ring | 8 entries, drops under scan/radar churn | 64 entries |
-| Delay-interrupt coalescing | Already 0 | Forced to 0 (guard comment) |
+| Delay-interrupt coalescing | Already 0 | Kept at 0, guard comment added |
 | RX reorder hold | 100 ms BE/BK, 40 ms others | 50 ms / 20 ms |
 | RX NAPI weight, data queue | 64 | 128, MCU queues stay 64 |
 | PCIe read request size | BIOS default | 512 when ASPM is off |
@@ -67,7 +67,7 @@ Check live values under `/sys/module/mt7921_common/parameters/` and `/sys/module
 
 ## Requirements
 
-* Kernel 7.x with headers. The DKMS config sets `BUILD_EXCLUSIVE_KERNEL_MIN=7.0` because the driver uses `struct wiphy::nan_supported_bands`, which does not exist on 6.x LTS, so 6.x refuses to build instead of failing halfway.
+* Kernel 7.1 or newer with headers. The DKMS config sets `BUILD_EXCLUSIVE_KERNEL_MIN=7.1` because the driver uses `NL80211_IFTYPE_NAN_DATA` and `CFG80211_NAN_MAX_PEER_MAPS`, which do not exist before 7.1, so older kernels refuse to build instead of failing halfway.
 * On clang-built kernels (some Arch/CachyOS flavors) build with `CC=clang LLVM=1`. `scripts/build.sh` detects this automatically. Plain `make` with gcc fails on those trees because the kernel passes clang-only flags.
 
 ---
@@ -101,7 +101,7 @@ sudo pacman -R mt792x-overdrive-dkms
 
 ### Method 2: manual DKMS
 
-Apply the patch first. Bare `dkms add .` on a clean tree builds unpatched stock because DKMS has no pre-build hook here, the PKGBUILD path is what applies it.
+Apply the patch first. Bare `dkms add .` on a clean tree builds unpatched stock because DKMS has no pre-build hook here, the PKGBUILD path is what applies it. Note that `dkms add .` copies the whole working tree, including `.git` and any build or packaging artifacts; use the PKGBUILD method or a `git archive` export if you want a lean `/usr/src` copy.
 
 ```bash
 ./scripts/patch.sh apply

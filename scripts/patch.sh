@@ -5,7 +5,19 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PATCH_DIR="${DIR}/patch"
 
 get_patches() {
+    if [ ! -d "${PATCH_DIR}" ]; then
+        echo "Error: patch directory not found: ${PATCH_DIR}" >&2
+        exit 1
+    fi
     mapfile -t PATCH_LIST < <(find "${PATCH_DIR}" -maxdepth 1 -type f -name "*.patch" | sort)
+    if [ "${#PATCH_LIST[@]}" -eq 0 ]; then
+        echo "Error: no patch files found in ${PATCH_DIR}" >&2
+        exit 1
+    fi
+    if [ "${#PATCH_LIST[@]}" -gt 1 ]; then
+        echo "Error: this project expects exactly one patch, found ${#PATCH_LIST[@]} in ${PATCH_DIR}." >&2
+        exit 1
+    fi
 }
 
 get_applied_patch() {
@@ -22,6 +34,7 @@ get_applied_patch() {
 }
 
 print_table() {
+    local modified="${1:-0}"
     get_patches
     get_applied_patch || true
     echo "Available patches:"
@@ -34,6 +47,8 @@ print_table() {
         local status="Not applied"
         if [ "$p" = "$APPLIED_PATCH" ]; then
             status="APPLIED"
+        elif [ "$modified" = "1" ]; then
+            status="UNKNOWN"
         fi
         printf "  %-4s  %-32s  %-10s\n" "$id" "$bname" "$status"
         ((id++))
@@ -42,6 +57,7 @@ print_table() {
 
 status() {
     get_applied_patch || true
+    local modified=0
     if [ -n "$APPLIED_PATCH" ]; then
         echo "Patch status: True ($(basename "$APPLIED_PATCH") applied)"
     else
@@ -57,10 +73,11 @@ status() {
             echo "Patch status: False"
         else
             echo "Patch status: Modified (tree matches neither stock nor a known patch)"
+            modified=1
         fi
     fi
     echo ""
-    print_table
+    print_table "$modified"
 }
 
 resolve_patch() {
@@ -154,7 +171,7 @@ revert() {
     if patch -p1 -R --dry-run -d "${DIR}" < "${SELECTED_PATCH}" >/dev/null 2>&1; then
         echo "Reverting patch: $(basename "$SELECTED_PATCH")..."
         patch -p1 -R -d "${DIR}" < "${SELECTED_PATCH}"
-        echo "Reverted to clean upstream stock."
+        echo "Patch reverted successfully."
     elif patch -p1 --dry-run -d "${DIR}" < "${SELECTED_PATCH}" >/dev/null 2>&1; then
         echo "Patch '$(basename "$SELECTED_PATCH")' is not currently applied."
     else

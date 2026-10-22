@@ -19,9 +19,15 @@ fi
 if grep -Eq '^CONFIG_CC_IS_CLANG=y' "${BUILD_DIR}/.config" 2>/dev/null; then
     COMPILER="CC=clang LLVM=1"
     echo "Using Clang compiler toolchain (LLVM=1)"
-else
+elif grep -Eq '^CONFIG_CC_IS_GCC=y' "${BUILD_DIR}/.config" 2>/dev/null; then
     COMPILER=""
     echo "Using GCC compiler toolchain"
+elif grep -q 'clang version' /proc/version 2>/dev/null; then
+    COMPILER="CC=clang LLVM=1"
+    echo "Kernel config missing; running kernel was built with clang, using LLVM=1"
+else
+    COMPILER=""
+    echo "Kernel config missing; defaulting to GCC"
 fi
 
 make -j"$(nproc)" -C "${BUILD_DIR}" M="${DIR}" ${COMPILER} modules

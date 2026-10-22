@@ -31,10 +31,17 @@ package() {
            -o -name '*.cmd' -o -name 'modules.order' -o -name 'Module.symvers' \
            -o -name '*.orig' -o -name '*.rej' \) -delete
 
-    # Apply the overdrive patch unless the source tree already carries it
+    # Apply the overdrive patch unless the source tree already carries it.
+    # A partial or locally modified tree is rejected instead of prompting
+    # (patch would otherwise ask "Assume -R?" and hang on a tty).
     local patch_file="${srcdir_dest}/patch/20261008.467ae2e3-overdrive.patch"
-    if ! patch -p1 -R --dry-run -s -d "${srcdir_dest}" < "${patch_file}" >/dev/null 2>&1; then
-        patch -p1 -d "${srcdir_dest}" < "${patch_file}" || exit 1
+    if patch -p1 -R --dry-run -s -d "${srcdir_dest}" < "${patch_file}" >/dev/null 2>&1; then
+        : # already fully applied
+    elif patch -p1 --dry-run -s -d "${srcdir_dest}" < "${patch_file}" >/dev/null 2>&1; then
+        patch -p1 --batch --forward -d "${srcdir_dest}" < "${patch_file}" || exit 1
+    else
+        echo "error: source tree is partially patched or locally modified; refusing to package it." >&2
+        exit 1
     fi
 
     # Install DKMS config
