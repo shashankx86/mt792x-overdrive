@@ -15,7 +15,7 @@ case "$1" in
         echo "=== Removing Overdrive modules from ${DEST} ==="
         rm -rf "${DEST}"
         depmod -a
-        echo "Reverted to stock kernel modules. Reboot or modprobe mt7921e."
+        echo "Reverted to stock kernel modules. Reboot, or run: modprobe -r mt7921e && modprobe mt7921e"
         exit 0
         ;;
 esac

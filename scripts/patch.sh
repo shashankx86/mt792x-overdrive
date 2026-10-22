@@ -45,7 +45,19 @@ status() {
     if [ -n "$APPLIED_PATCH" ]; then
         echo "Patch status: True ($(basename "$APPLIED_PATCH") applied)"
     else
-        echo "Patch status: False"
+        local p
+        local applies=0
+        for p in "${PATCH_LIST[@]}"; do
+            if patch -p1 --dry-run -s -d "${DIR}" < "$p" >/dev/null 2>&1; then
+                applies=1
+                break
+            fi
+        done
+        if [ "$applies" -eq 1 ]; then
+            echo "Patch status: False"
+        else
+            echo "Patch status: Modified (tree matches neither stock nor a known patch)"
+        fi
     fi
     echo ""
     print_table
@@ -114,6 +126,16 @@ apply() {
         exit 1
     fi
 
+    if ! patch -p1 --dry-run -s -d "${DIR}" < "${SELECTED_PATCH}" >/dev/null 2>&1; then
+        if patch -p1 -R --dry-run -s -d "${DIR}" < "${SELECTED_PATCH}" >/dev/null 2>&1; then
+            echo "Patch '$(basename "$SELECTED_PATCH")' is already applied."
+            return 0
+        fi
+        echo "Error: working tree has local modifications; refusing to apply." >&2
+        echo "Restore the tree first, or resolve the conflicting changes manually." >&2
+        exit 1
+    fi
+
     echo "Applying patch: $(basename "$SELECTED_PATCH")..."
     patch -p1 -d "${DIR}" < "${SELECTED_PATCH}"
     echo "Patch applied successfully."
@@ -133,8 +155,12 @@ revert() {
         echo "Reverting patch: $(basename "$SELECTED_PATCH")..."
         patch -p1 -R -d "${DIR}" < "${SELECTED_PATCH}"
         echo "Reverted to clean upstream stock."
-    else
+    elif patch -p1 --dry-run -d "${DIR}" < "${SELECTED_PATCH}" >/dev/null 2>&1; then
         echo "Patch '$(basename "$SELECTED_PATCH")' is not currently applied."
+    else
+        echo "Error: tree matches neither clean stock nor the patch." >&2
+        echo "It has local modifications; resolve them before reverting." >&2
+        exit 1
     fi
 }
 

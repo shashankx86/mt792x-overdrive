@@ -7,5 +7,9 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "=== Unloading MT792x Modules ==="
-modprobe -r mt7921e mt7921_common mt792x_lib mt76_connac_lib mt76 2>/dev/null || true
+for m in mt7921e mt7921_common mt792x_lib mt76_connac_lib mt76; do
+    if grep -q "^${m} " /proc/modules; then
+        rmmod "${m}"
+    fi
+done
 echo "=== Unloaded ==="

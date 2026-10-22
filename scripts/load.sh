@@ -10,10 +10,18 @@ fi
 
 echo "=== Loading MT792x Overdrive Modules ==="
 
-# 1. Ensure mac80211 and cfg80211 are present
+# 1. Unload the stock or previously loaded stack first
+for m in mt7921e mt7921_common mt792x_lib mt76_connac_lib mt76; do
+    if grep -q "^${m} " /proc/modules; then
+        echo "Unloading ${m}..."
+        rmmod "${m}"
+    fi
+done
+
+# 2. Ensure mac80211 and cfg80211 are present
 modprobe mac80211 cfg80211
 
-# 2. Insert overdrive modules in dependency order
+# 3. Insert overdrive modules in dependency order
 insmod "${DIR}/mt76.ko"
 insmod "${DIR}/mt76-connac-lib.ko"
 insmod "${DIR}/mt792x-lib.ko"

@@ -15,8 +15,8 @@ fi
 # Ensure overdrive patch is applied
 "${DIR}/scripts/patch.sh" apply
 
-# Detect Clang / LLVM vs GCC
-if grep -Eq '^CONFIG_CC_IS_CLANG=y' "${BUILD_DIR}/.config" 2>/dev/null || command -v clang >/dev/null 2>&1; then
+# Detect Clang / LLVM vs GCC from the kernel config
+if grep -Eq '^CONFIG_CC_IS_CLANG=y' "${BUILD_DIR}/.config" 2>/dev/null; then
     COMPILER="CC=clang LLVM=1"
     echo "Using Clang compiler toolchain (LLVM=1)"
 else

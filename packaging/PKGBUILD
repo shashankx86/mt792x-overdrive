@@ -25,8 +25,17 @@ package() {
     cp -r "${rootdir}/patch" "${srcdir_dest}/"
     cp -r "${rootdir}/scripts" "${srcdir_dest}/"
 
-    # Apply overdrive patch in destination directory
-    patch -p1 -d "${srcdir_dest}" < "${srcdir_dest}/patch/20261008.467ae2e3-overdrive.patch"
+    # Never package objects left behind by an in-tree build
+    find "${srcdir_dest}" \
+        \( -name '*.o' -o -name '*.ko' -o -name '*.mod' -o -name '*.mod.c' \
+           -o -name '*.cmd' -o -name 'modules.order' -o -name 'Module.symvers' \
+           -o -name '*.orig' -o -name '*.rej' \) -delete
+
+    # Apply the overdrive patch unless the source tree already carries it
+    local patch_file="${srcdir_dest}/patch/20261008.467ae2e3-overdrive.patch"
+    if ! patch -p1 -R --dry-run -s -d "${srcdir_dest}" < "${patch_file}" >/dev/null 2>&1; then
+        patch -p1 -d "${srcdir_dest}" < "${patch_file}" || exit 1
+    fi
 
     # Install DKMS config
     install -Dm644 "${srcdir}/dkms.conf" "${srcdir_dest}/dkms.conf"
