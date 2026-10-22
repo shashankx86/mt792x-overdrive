@@ -192,7 +192,7 @@ case "$1" in
         revert "$2"
         ;;
     *)
-        echo "Usage: $0 {status|apply [id]|revert [id]}"
+        echo "Usage: $0 {status|apply|revert}"
         exit 1
         ;;
 esac

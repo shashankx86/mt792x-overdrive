@@ -101,7 +101,7 @@ sudo pacman -R mt792x-overdrive-dkms
 
 ### Method 2: manual DKMS
 
-Apply the patch first. Bare `dkms add .` on a clean tree builds unpatched stock because DKMS has no pre-build hook here, the PKGBUILD path is what applies it. Note that `dkms add .` copies the whole working tree, including `.git` and any build or packaging artifacts; use the PKGBUILD method or a `git archive` export if you want a lean `/usr/src` copy.
+Apply the patch first. Bare `dkms add .` on a clean tree builds unpatched stock because DKMS has no pre-build hook here, the PKGBUILD path is what applies it. Note that `dkms add .` copies the whole working tree, including `.git` and any build or packaging artifacts; use the PKGBUILD method, or export with `git archive` and run `./scripts/patch.sh apply` inside the export, if you want a lean `/usr/src` copy.
 
 ```bash
 ./scripts/patch.sh apply
