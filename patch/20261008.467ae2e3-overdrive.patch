@@ -100,10 +100,10 @@ index a67880a9..a2acce42 100644
  	napi_enable(&dev->napi[qid]);
  }
 diff --git a/mt76_connac_mcu.c b/mt76_connac_mcu.c
-index 2f925d22..d5a3beaa 100644
+index 3e134f71..d9f6b1a4 100644
 --- a/mt76_connac_mcu.c
 +++ b/mt76_connac_mcu.c
-@@ -3037,7 +3037,7 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
+@@ -3032,7 +3032,7 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
  				    struct ieee80211_channel *chan,
  				    struct mt76_power_limits *limits)
  {
@@ -112,7 +112,7 @@ index 2f925d22..d5a3beaa 100644
  	int tx_power;
  
  	tx_power = 2 * phy->hw->conf.power_level;
-@@ -3045,8 +3045,8 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
+@@ -3040,8 +3040,8 @@ s8 mt76_connac_get_rate_power_limit(struct mt76_phy *phy,
  		tx_power = 127;
  
  	reg_power = mt76_connac_get_ch_power(phy, chan, tx_power);
@@ -219,7 +219,7 @@ index e3e8bd9d..451a7caf 100644
  		dev->pm.ds_enable = true;
  	}
 diff --git a/mt7921/mt7921.h b/mt7921/mt7921.h
-index f7ed1135..6fb08e4a 100644
+index 3baf6094..efaed05d 100644
 --- a/mt7921/mt7921.h
 +++ b/mt7921/mt7921.h
 @@ -19,7 +19,8 @@
@@ -233,7 +233,7 @@ index f7ed1135..6fb08e4a 100644
  
  /* MT7902 Rx Ring0 is for both Rx Event and Tx Done Event */
 diff --git a/mt7921/pci.c b/mt7921/pci.c
-index fcbb7a03..a102e432 100644
+index 69ed1a21..32e5ce82 100644
 --- a/mt7921/pci.c
 +++ b/mt7921/pci.c
 @@ -32,7 +32,7 @@ static const struct pci_device_id mt7921_pci_device_table[] = {
@@ -257,16 +257,16 @@ index fcbb7a03..a102e432 100644
  	ops = mt792x_get_mac80211_ops(&pdev->dev, &mt7921_ops,
  				      (void *)id->driver_data, &features);
  	if (!ops) {
-@@ -739,5 +744,6 @@ MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
+@@ -740,5 +745,6 @@ MODULE_FIRMWARE(MT7902_FIRMWARE_WM);
  MODULE_FIRMWARE(MT7902_ROM_PATCH);
  MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
  MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 -MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
 +MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver [Overdrive Edition]");
-+MODULE_VERSION("20260813.be5ce791");
++MODULE_VERSION("20261008.467ae2e3");
  MODULE_LICENSE("Dual BSD/GPL");
 diff --git a/mt7921/regd.c b/mt7921/regd.c
-index 4a8ea462..2ee50ca7 100644
+index 547c0f56..7a1385ab 100644
 --- a/mt7921/regd.c
 +++ b/mt7921/regd.c
 @@ -6,7 +6,7 @@
@@ -279,10 +279,10 @@ index 4a8ea462..2ee50ca7 100644
  MODULE_PARM_DESC(disable_clc, "disable CLC support");
  
 diff --git a/mt792x_acpi_sar.c b/mt792x_acpi_sar.c
-index 946dd795..dc5fa535 100644
+index ce5d5909..291ec75e 100644
 --- a/mt792x_acpi_sar.c
 +++ b/mt792x_acpi_sar.c
-@@ -191,6 +191,12 @@ mt792x_asar_acpi_read_mtfg(struct mt792x_dev *dev, u8 **table)
+@@ -221,6 +221,12 @@ mt792x_asar_acpi_read_mtfg(struct mt792x_dev *dev, u8 **table)
  }
  
  int mt792x_init_acpi_sar(struct mt792x_dev *dev)
@@ -296,11 +296,10 @@ index 946dd795..dc5fa535 100644
  	struct mt792x_acpi_sar *asar;
  	int ret;
 diff --git a/mt792x_dma.c b/mt792x_dma.c
-index e74b95fd..c9ce3800 100644
+index e74b95fd..66a72c7e 100644
 --- a/mt792x_dma.c
 +++ b/mt792x_dma.c
- 
-@@ -290,6 +291,7 @@ int mt792x_dma_enable(struct mt792x_dev *dev)
+@@ -290,6 +290,7 @@ int mt792x_dma_enable(struct mt792x_dev *dev)
  		mt76_wr(dev, MT_WFDMA0_RST_DRX_PTR, ~0);
  
  	/* configure delay interrupt */
@@ -308,7 +307,7 @@ index e74b95fd..c9ce3800 100644
  	mt76_wr(dev, MT_WFDMA0_PRI_DLY_INT_CFG0, 0);
  
  	if (is_mt7928(&dev->mt76)) {
-@@ -525,6 +527,9 @@ int mt792x_poll_tx(struct napi_struct *napi, int budget)
+@@ -525,6 +526,9 @@ int mt792x_poll_tx(struct napi_struct *napi, int budget)
  	}
  
  	mt76_connac_tx_cleanup(&dev->mt76);
@@ -319,10 +318,10 @@ index e74b95fd..c9ce3800 100644
  		mt76_connac_irq_enable(&dev->mt76,
  				       dev->irq_map->tx.all_complete_mask);
 diff --git a/tx.c b/tx.c
-index 963fcaf4..3e83245c 100644
+index dc6a65d3..38a75ed1 100644
 --- a/tx.c
 +++ b/tx.c
-@@ -505,7 +505,9 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
+@@ -510,7 +510,9 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_queue *q,
  	if (test_bit(MT_WCID_FLAG_PS, &wcid->flags)) {
  		if (!(dev->drv->drv_flags & MT_DRV_HW_PS_BUFFERING))
  			return 0;

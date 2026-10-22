@@ -74,7 +74,7 @@ Check live values under `/sys/module/mt7921_common/parameters/` and `/sys/module
 
 ## Patch management
 
-One patch, `patch/20260813.be5ce791-overdrive.patch`, holds every change. `patch/BASE` records the upstream commit it was built from. Versions are date plus upstream SHA, not kernel releases, because the source is openwrt/mt76 master and not a kernel tarball. Current version `20260813.be5ce791` means base from 2026-08-13 at `be5ce791`. Newer base, newer version, upgrades sort correctly.
+One patch, `patch/20261008.467ae2e3-overdrive.patch`, holds every change. `patch/BASE` records the upstream commit it was built from. Versions are date plus upstream SHA, not kernel releases, because the source is openwrt/mt76 master and not a kernel tarball. Current version `20261008.467ae2e3` means base from 2026-10-08 at `467ae2e3`. Newer base, newer version, upgrades sort correctly.
 
 ```bash
 ./scripts/patch.sh status   # applied vs clean stock
@@ -106,12 +106,12 @@ Apply the patch first. Bare `dkms add .` on a clean tree builds unpatched stock 
 ```bash
 ./scripts/patch.sh apply
 sudo dkms add .
-sudo dkms build mt792x-overdrive/20260813.be5ce791
-sudo dkms install mt792x-overdrive/20260813.be5ce791
+sudo dkms build mt792x-overdrive/20261008.467ae2e3
+sudo dkms install mt792x-overdrive/20261008.467ae2e3
 ```
 
 ```bash
-sudo dkms remove mt792x-overdrive/20260813.be5ce791 --all
+sudo dkms remove mt792x-overdrive/20261008.467ae2e3 --all
 ```
 
 ### Method 3: standalone build and load
@@ -135,4 +135,4 @@ iw dev wlan0 station dump | grep -E "signal|bitrate|tx retries|tx failed"
 iw dev wlan0 get power_save
 ```
 
-Healthy signs: version reads `20260813.be5ce791`, power save reads off, txpower sits near 30 dBm instead of collapsing to single digits after a few rounds.
+Healthy signs: version reads `20261008.467ae2e3`, power save reads off, txpower sits near 30 dBm instead of collapsing to single digits after a few rounds.

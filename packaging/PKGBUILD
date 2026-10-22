@@ -1,7 +1,7 @@
 # Maintainer: e0u
 pkgname=mt792x-overdrive-dkms
-pkgver=20260813.be5ce791
-pkgrel=2
+pkgver=20261008.467ae2e3
+pkgrel=1
 pkgdesc="Overdrive edition kernel driver for MediaTek MT7921/MT7922 and AMD RZ608/RZ616 (bypasses ACPI SAR, uncaps MCU power, disables ASPM/CLC)"
 arch=('x86_64')
 url="https://github.com/shashankx86/mt792x-overdrive"
@@ -26,7 +26,7 @@ package() {
     cp -r "${rootdir}/scripts" "${srcdir_dest}/"
 
     # Apply overdrive patch in destination directory
-    patch -p1 -d "${srcdir_dest}" < "${srcdir_dest}/patch/20260813.be5ce791-overdrive.patch"
+    patch -p1 -d "${srcdir_dest}" < "${srcdir_dest}/patch/20261008.467ae2e3-overdrive.patch"
 
     # Install DKMS config
     install -Dm644 "${srcdir}/dkms.conf" "${srcdir_dest}/dkms.conf"
