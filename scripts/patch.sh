@@ -9,6 +9,7 @@ get_patches() {
         echo "Error: patch directory not found: ${PATCH_DIR}" >&2
         exit 1
     fi
+    # Only the active top-level patch is considered; patch/archive/ is historical.
     mapfile -t PATCH_LIST < <(find "${PATCH_DIR}" -maxdepth 1 -type f -name "*.patch" | sort)
     if [ "${#PATCH_LIST[@]}" -eq 0 ]; then
         echo "Error: no patch files found in ${PATCH_DIR}" >&2

@@ -1,7 +1,7 @@
 # Maintainer: e0u
 pkgname=mt792x-overdrive-dkms
 pkgver=20261008.467ae2e3
-pkgrel=1
+pkgrel=2
 pkgdesc="Overdrive edition kernel driver for MediaTek MT7921/MT7922 and AMD RZ608/RZ616 (bypasses ACPI SAR, uncaps MCU power, disables ASPM/CLC)"
 arch=('x86_64')
 url="https://github.com/shashankx86/mt792x-overdrive"
@@ -34,7 +34,7 @@ package() {
     # Apply the overdrive patch unless the source tree already carries it.
     # A partial or locally modified tree is rejected instead of prompting
     # (patch would otherwise ask "Assume -R?" and hang on a tty).
-    local patch_file="${srcdir_dest}/patch/20261008.467ae2e3-overdrive.patch"
+    local patch_file="${srcdir_dest}/patch/20261008.467ae2e3-overdrive-ps-gating.patch"
     if patch -p1 -R --dry-run -s -d "${srcdir_dest}" < "${patch_file}" >/dev/null 2>&1; then
         : # already fully applied
     elif patch -p1 --dry-run -s -d "${srcdir_dest}" < "${patch_file}" >/dev/null 2>&1; then

@@ -43,7 +43,7 @@ SDIO and USB variants of these IDs are not supported by this build.
 
 ## Module parameters
 
-Everything is reversible at runtime, no recompile. All default to the fast setting.
+Everything is reversible with a module reload, no recompile. All default to the fast setting.
 
 | Parameter | Module | Default | To restore stock |
 | :--- | :--- | :---: | :--- |
@@ -74,7 +74,7 @@ Check live values under `/sys/module/mt7921_common/parameters/` and `/sys/module
 
 ## Patch management
 
-One patch, `patch/20261008.467ae2e3-overdrive.patch`, holds every change. `patch/BASE` records the upstream commit it was built from. Versions are date plus upstream SHA, not kernel releases, because the source is openwrt/mt76 master and not a kernel tarball. Current version `20261008.467ae2e3` means base from 2026-10-08 at `467ae2e3`. Newer base, newer version, upgrades sort correctly.
+The active patch is `patch/20261008.467ae2e3-overdrive-ps-gating.patch`; it holds every change. The previous pre-PS-gating patch is kept at `patch/archive/20261008.467ae2e3-overdrive.patch` for rollback. `scripts/patch.sh` only considers top-level `patch/*.patch`, so the archived copy is never applied automatically. `patch/BASE` records the upstream commit it was built from. Versions are date plus upstream SHA, not kernel releases, because the source is openwrt/mt76 master and not a kernel tarball. Current version `20261008.467ae2e3` means base from 2026-10-08 at `467ae2e3`. Newer base, newer version, upgrades sort correctly.
 
 ```bash
 ./scripts/patch.sh status   # applied vs clean stock
