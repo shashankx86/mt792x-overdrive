@@ -182,16 +182,17 @@ index 3ef7c9c4..cc709990 100644
 -mt7921s-y := sdio.o sdio_mac.o sdio_mcu.o
 -mt7921u-y := usb.o
 diff --git a/mt7921/init.c b/mt7921/init.c
-index e3e8bd9d..451a7caf 100644
+index e3e8bd9d..d7a0a4b2 100644
 --- a/mt7921/init.c
 +++ b/mt7921/init.c
-@@ -11,6 +11,16 @@
+@@ -11,6 +11,17 @@
  #include "mcu.h"
  #include "regd.h"
  
 +/* OVERDRIVE: FW power-save / deep-sleep is the largest idle->burst jitter
 + * source after ASPM (83ms idle_timeout + fw-own/driver-own handshake).
-+ * Default disabled; reversible at runtime via disable_ps=0/disable_ds=0. */
++ * Default disabled; both knobs are sampled at module load, so reload with
++ * disable_ps=0/disable_ds=0 to re-enable them. */
 +static bool mt7921_disable_ps = true;
 +module_param_named(disable_ps, mt7921_disable_ps, bool, 0644);
 +MODULE_PARM_DESC(disable_ps, "disable firmware power-save");
@@ -202,7 +203,13 @@ index e3e8bd9d..451a7caf 100644
  static ssize_t mt7921_thermal_temp_show(struct device *dev,
  					struct device_attribute *attr,
  					char *buf)
-@@ -208,9 +218,14 @@ int mt7921_register_device(struct mt792x_dev *dev)
+@@ -203,14 +214,20 @@ int mt7921_register_device(struct mt792x_dev *dev)
+ 	timer_setup(&dev->phy.roc_timer, mt792x_roc_timer, 0);
+ 	init_waitqueue_head(&dev->phy.roc_wait);
+ 
++	dev->disable_ps = mt7921_disable_ps;
+ 	dev->pm.idle_timeout = MT792x_PM_TIMEOUT;
+ 	dev->pm.stats.last_wake_event = jiffies;
  	dev->pm.stats.last_doze_event = jiffies;
  
  	if (!mt76_is_usb(&dev->mt76) &&
@@ -218,6 +225,21 @@ index e3e8bd9d..451a7caf 100644
  		dev->pm.ds_enable_user = true;
  		dev->pm.ds_enable = true;
  	}
+diff --git a/mt7921/mcu.c b/mt7921/mcu.c
+index 37fd224b..e106225b 100644
+--- a/mt7921/mcu.c
++++ b/mt7921/mcu.c
+@@ -994,6 +994,10 @@ int mt7921_mcu_uni_bss_ps(struct mt792x_dev *dev, struct ieee80211_vif *vif)
+ 	if (vif->type != NL80211_IFTYPE_STATION)
+ 		return -EOPNOTSUPP;
+ 
++	/* Keep the firmware awake when PS was disabled at module load. */
++	if (dev->disable_ps)
++		ps_req.ps.ps_state = 0;
++
+ 	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
+ 				 &ps_req, sizeof(ps_req), true);
+ }
 diff --git a/mt7921/mt7921.h b/mt7921/mt7921.h
 index 3baf6094..efaed05d 100644
 --- a/mt7921/mt7921.h
@@ -278,6 +300,18 @@ index 547c0f56..7a1385ab 100644
  module_param_named(disable_clc, mt7921_disable_clc, bool, 0644);
  MODULE_PARM_DESC(disable_clc, "disable CLC support");
  
+diff --git a/mt792x.h b/mt792x.h
+index a7d71e00..90b4df0a 100644
+--- a/mt792x.h
++++ b/mt792x.h
+@@ -316,6 +316,7 @@ struct mt792x_dev {
+ 	bool hif_resumed:1;
+ 	bool regd_change:1;
+ 	bool skip_wpdma_reinit:1;
++	bool disable_ps:1;
+ 	wait_queue_head_t wait;
+ 
+ 	struct work_struct init_work;
 diff --git a/mt792x_acpi_sar.c b/mt792x_acpi_sar.c
 index ce5d5909..291ec75e 100644
 --- a/mt792x_acpi_sar.c
@@ -295,6 +329,26 @@ index ce5d5909..291ec75e 100644
  {
  	struct mt792x_acpi_sar *asar;
  	int ret;
+diff --git a/mt792x_core.c b/mt792x_core.c
+index 3ce6c6ce..caaa0e16 100644
+--- a/mt792x_core.c
++++ b/mt792x_core.c
+@@ -841,6 +841,15 @@ int mt792x_init_wiphy(struct ieee80211_hw *hw)
+ 		ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+ 	ieee80211_hw_set(hw, SUPPORTS_PS);
+ 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
++	/*
++	 * disable_ps must also be reflected in mac80211.  Otherwise userspace
++	 * can still enable PS and the firmware will enter its delayed-wakeup
++	 * path even though the module was loaded with power save disabled.
++	 */
++	if (dev->disable_ps) {
++		__clear_bit(IEEE80211_HW_SUPPORTS_PS, hw->flags);
++		__clear_bit(IEEE80211_HW_SUPPORTS_DYNAMIC_PS, hw->flags);
++	}
+ 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
+ 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+ 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 diff --git a/mt792x_dma.c b/mt792x_dma.c
 index e74b95fd..66a72c7e 100644
 --- a/mt792x_dma.c
